@@ -1,0 +1,194 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #E07A5F; /* Terracotta background */
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    /* Prevent sleep on iOS */
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.container {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    padding: 20px;
+}
+
+.countdown-wrapper {
+    text-align: center;
+    z-index: 10;
+    position: relative;
+}
+
+.countdown-display {
+    margin-bottom: 40px;
+}
+
+.days-number {
+    display: block;
+    font-size: 120px;
+    font-weight: 900;
+    color: #FFF8DC; /* Cream color */
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    line-height: 1;
+    margin-bottom: 10px;
+    transition: transform 0.3s ease;
+}
+
+.days-label {
+    display: block;
+    font-size: 32px;
+    font-weight: 300;
+    color: #FFF8DC; /* Cream color */
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.progress-container {
+    width: 300px;
+    max-width: 80%;
+    height: 8px;
+    background: rgba(255, 248, 220, 0.3); /* Cream with transparency */
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 0 auto 20px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #FFF8DC 0%, #F5F5DC 100%); /* Cream gradient */
+    border-radius: 10px;
+    transition: width 0.5s ease;
+    box-shadow: 0 2px 8px rgba(255, 248, 220, 0.5);
+}
+
+.cycle-indicator {
+    font-size: 18px;
+    color: #FFF8DC; /* Cream color */
+    font-weight: 500;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    letter-spacing: 1px;
+}
+
+.emoji-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+    overflow: hidden;
+}
+
+.floating-emoji {
+    position: absolute;
+    font-size: 40px;
+    bottom: -50px;
+    animation: floatUp 5s ease-out forwards;
+    pointer-events: none;
+    will-change: transform, opacity;
+}
+
+@keyframes floatUp {
+    0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-100vh) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+.celebration {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    font-size: 80px;
+    z-index: 20;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.celebration.active {
+    animation: celebrate 2s ease-out forwards;
+    opacity: 1;
+}
+
+@keyframes celebrate {
+    0% {
+        transform: translate(-50%, -50%) scale(0) rotate(0deg);
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.5) rotate(180deg);
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+/* iPad optimizations */
+@media screen and (max-width: 1024px) {
+    .days-number {
+        font-size: 100px;
+    }
+    
+    .days-label {
+        font-size: 28px;
+    }
+}
+
+/* Landscape orientation */
+@media screen and (orientation: landscape) and (max-height: 768px) {
+    .days-number {
+        font-size: 80px;
+    }
+    
+    .days-label {
+        font-size: 24px;
+    }
+    
+    .countdown-display {
+        margin-bottom: 20px;
+    }
+}
+
+/* Performance optimizations */
+.countdown-display,
+.progress-container,
+.cycle-indicator {
+    will-change: transform;
+    transform: translateZ(0);
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
