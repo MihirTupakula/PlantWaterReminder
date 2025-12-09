@@ -82,29 +82,140 @@ function updateCycleIndicator(cycleNumber) {
     cycleIndicatorEl.textContent = `Cycle ${cycleNumber}`;
 }
 
-// Wake Lock API to keep screen awake
-let wakeLock = null;
+// Silent audio loop to keep device awake (works on older iPads)
+let silentAudio = null;
+let audioContext = null;
 
-async function requestWakeLock() {
+function initSilentAudio() {
     try {
-        if ('wakeLock' in navigator) {
-            wakeLock = await navigator.wakeLock.request('screen');
-            console.log('Wake lock activated');
-            
-            // Re-request wake lock if it's released (e.g., when tab becomes visible again)
-            wakeLock.addEventListener('release', () => {
-                console.log('Wake lock released');
-            });
+        // Create a silent audio element
+        silentAudio = document.createElement('audio');
+        silentAudio.loop = true;
+        silentAudio.volume = 0.01; // Very low volume, essentially silent
+        silentAudio.preload = 'auto';
+        
+        // Create a silent audio buffer using Web Audio API
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Create a silent audio buffer (1 second of silence)
+        const sampleRate = audioContext.sampleRate;
+        const buffer = audioContext.createBuffer(1, sampleRate, sampleRate);
+        const data = buffer.getChannelData(0);
+        
+        // Fill with silence (zeros)
+        for (let i = 0; i < sampleRate; i++) {
+            data[i] = 0;
         }
+        
+        // Create a source and connect it
+        const source = audioContext.createBufferSource();
+        source.buffer = buffer;
+        source.loop = true;
+        source.connect(audioContext.destination);
+        source.start(0);
+        
+        // Also use HTML5 audio as a fallback
+        // Create a data URI for a minimal silent WAV file
+        const silentWav = createSilentWav();
+        silentAudio.src = silentWav;
+        
+        // Play the audio (muted, but playing keeps device awake)
+        silentAudio.play().catch(err => {
+            console.log('Audio play failed (may need user interaction):', err);
+        });
+        
+        console.log('Silent audio loop initialized');
     } catch (err) {
-        console.log('Wake lock not supported or failed:', err);
+        console.log('Silent audio initialization failed:', err);
     }
 }
 
-// Re-request wake lock when page becomes visible
-document.addEventListener('visibilitychange', async () => {
-    if (document.visibilityState === 'visible' && wakeLock === null) {
-        await requestWakeLock();
+// Create a minimal silent WAV file as data URI
+function createSilentWav() {
+    // Minimal WAV file header + 1 second of silence at 44.1kHz
+    const sampleRate = 44100;
+    const numChannels = 1;
+    const bitsPerSample = 16;
+    const duration = 1; // 1 second
+    const numSamples = sampleRate * duration;
+    const dataSize = numSamples * numChannels * (bitsPerSample / 8);
+    
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+    
+    // WAV header
+    const writeString = (offset, string) => {
+        for (let i = 0; i < string.length; i++) {
+            view.setUint8(offset + i, string.charCodeAt(i));
+        }
+    };
+    
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true); // fmt chunk size
+    view.setUint16(20, 1, true); // audio format (PCM)
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * numChannels * (bitsPerSample / 8), true);
+    view.setUint16(32, numChannels * (bitsPerSample / 8), true);
+    view.setUint16(34, bitsPerSample, true);
+    writeString(36, 'data');
+    view.setUint32(40, dataSize, true);
+    
+    // Data is already zeros (silence)
+    
+    // Convert to base64 data URI
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return 'data:audio/wav;base64,' + btoa(binary);
+}
+
+// Start audio on user interaction (required for iOS/iPad)
+let audioStarted = false;
+
+function startAudioOnInteraction() {
+    if (audioStarted) return;
+    
+    if (silentAudio) {
+        silentAudio.play().then(() => {
+            audioStarted = true;
+            console.log('Silent audio started');
+        }).catch(err => {
+            console.log('Audio play failed:', err);
+        });
+    }
+    
+    if (audioContext && audioContext.state === 'suspended') {
+        audioContext.resume().then(() => {
+            console.log('Audio context resumed');
+        }).catch(err => {
+            console.log('Audio context resume failed:', err);
+        });
+    }
+}
+
+// Listen for any user interaction to start audio
+document.addEventListener('touchstart', startAudioOnInteraction, { once: true });
+document.addEventListener('click', startAudioOnInteraction, { once: true });
+
+// Restart audio if it stops (e.g., when page becomes visible)
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        if (silentAudio && silentAudio.paused && audioStarted) {
+            silentAudio.play().catch(err => {
+                console.log('Audio resume failed:', err);
+            });
+        }
+        if (audioContext && audioContext.state === 'suspended') {
+            audioContext.resume().catch(err => {
+                console.log('Audio context resume failed:', err);
+            });
+        }
     }
 });
 
@@ -155,20 +266,6 @@ function showCelebration() {
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     initCountdown();
-    requestWakeLock();
-    
-    // Keep page active with subtle activity (fallback for devices without wake lock)
-    // This helps prevent sleep on older iPads
-    let lastActivity = Date.now();
-    setInterval(() => {
-        // Subtle activity to keep page active
-        if (Date.now() - lastActivity > 30000) {
-            document.body.style.opacity = '0.999';
-            setTimeout(() => {
-                document.body.style.opacity = '1';
-            }, 1);
-            lastActivity = Date.now();
-        }
-    }, 30000);
+    initSilentAudio();
 });
 
